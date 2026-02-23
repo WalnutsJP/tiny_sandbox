@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Sandbox</title>
+
+    <!-- PyScript の安定バージョンを使用 -->
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css" />
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+
+    <!-- CoddeMirror CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/monokai.min.css" />
+
+    <!-- CodeMirror JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+
+    <!-- p5.js ライブラリの読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.js"></script>
+
+    <style>
+        *, *::before, *::after {
+           box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0 auto;
+            padding: 10px;
+        }
+
+        h1 {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0 0 0px 11px;
+            padding: 0;
+        }
+
+        .main-container {
+            display: flex;
+            margin: 0px 0;
+            height: 100%;
+        }
+
+        .left-panel {
+            flex: 1;
+            min-width: 0;
+            border: 1.5px solid #3c3c3c;
+            border-right-width: 1px;
+            border-radius: 5px 0px 0px 5px;
+            padding: 10px;
+            margin: 0;
+        }
+        .right-panel {
+            flex: 1;
+            min-width: 0;
+            border: 1.5px solid #3c3c3c;
+            border-left-width: 1px;
+            border-radius: 0px 5px 5px 0px;
+            padding: 10px;
+            margin: 0;
+        }
+
+        .tab-container {
+            display: flex;
+            border-bottom: 2px solid #007acc;
+            margin-bottom: 10px;
+        }
+
+        .tab-button {
+            border: none;
+            border-top: 2px solid transparent;
+            border-radius: 5px 5px 0 0;
+            padding: 10px 15px;
+            background-color: #f0f0f0;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .tab-button.active {
+            background-color: #007acc;
+            color: white;
+        }
+        .tab-button:hover:not(.active) {
+            background-color: #e0e0e0;
+        }
+
+        .CodeMirror {
+            border: 1px solid #3c3c3c;
+            border-radius: 3px;
+            width: 100%;
+            height: 500px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+
+        .execute-btn {
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            background-color: #007acc;
+            color: white;
+            cursor: pointer;
+        }
+        .execute-btn:hover {
+            background-color: #005a9e;
+        }
+
+        .output-container {
+            margin-top: 12px;
+            background-color: #f9f9f9;
+            overflow: hidden;
+        }
+
+        .code-output {
+            border: 1px solid #3c3c3c;
+            border-radius: 3px;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #1e1e1e;
+            /*height: 500px;*/
+            min-height: 120px;
+            max-height: 160px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', Courier, monospace;
+            font-size: 14px;
+            color: #d4d4d4;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+        .code-output::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        .code-output::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 6px;
+        }
+        .code-output::-webkit-scrollbar-thumb:hover {
+            background: #555555;
+        }
+
+        .results-area {
+            margin-top: 0px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .results-div {
+            margin: 0px 0;
+            padding: 10px;
+            border: 1px solid #3c3c3c;
+            border-radius: 5px;
+            background: #fff;
+        }
+
+        .glsl-canvas {
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background-color: #000;
+            width: 100%;
+            max-width: 512px;
+            height: 512px;
+        }
+    </style>
+</head>
+<body>
+    <py-config>
+        packages = ["numpy", "matplotlib", "Pillow"]
+    </py-config>
+    <h1>Tiny Sandbox</h1>
+    <div class="main-container">
+        <div class="left-panel">
+            <!-- タブ切り替え-->
+            <div class="tab-container">
+                <button class="tab-button active" id="python-tab">🐍 Python</button>
+                <button class="tab-button" id="glsl-tab">🎨 GLSL</button>
+                <button class="tab-button" id="p5-tab">🫟 P5.js</button>
+            </div>
+
+            <!-- Python用コード入力エリア-->
+            <textarea id="python-code-input" style="display: none;"></textarea>
+
+            <!-- GLSL用コード入力エリア-->
+            <textarea id="glsl-code-input" style="display: none;"></textarea>
+
+            <!-- P5用コード入力エリア-->
+            <textarea id="p5-code-input" style="display: none;"></textarea>
+        </div>
+        <div class="right-panel">
+            <button id="execute-btn" class="execute-btn">実行</button>
+            <div class="output-container">
+                <div id="code-output" class="code-output">実行結果がここに表示されます...</div>
+                <div id="results-area" class="results-area"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- デフォルトコード定義 -->
+    <script src="init-code.js"></script>
+
+    <!-- CodeMirrorエディタ初期化-->
+    <script>
+        /**
+         * Tabキーでインデントを追加
+         * @param {CodeMirror} cm CodeMirrorインスタンス
+         */
+        function onTabKey(cm) {
+            // 選択中の行のインデントを追加
+            if (cm.somethingSelected()) {
+                cm.indentSelection('add');
+            }
+            // 選択されていない場合はカーソル位置にスペース4つを挿入
+            else {
+                const indentUnit = cm.getOption("indentUnit");
+                const spaces = " ".repeat(indentUnit);
+                cm.replaceSelection(spaces);
+            }
+        }
+
+        /**
+         * Shift+Tabキーでインデントを削除
+         * @param {CodeMirror} cm CodeMirrorインスタンス
+         */
+        function onShiftTabKey(cm) {
+            // 選択中の行のインデントを削除
+            if (cm.somethingSelected())
+            {
+                cm.indentSelection('subtract');
+            }
+            else {
+                // ② 選択が無い場合 → 現在行のインデントを1段階戻す
+                const cursor = cm.getCursor();
+                const lineNumber = cursor.line;
+                const lineContent = cm.getLine(lineNumber);
+
+                const indentUnit = cm.getOption("indentUnit");
+
+                // 行頭の空白を取得
+                const leadingSpaces = lineContent.match(/^\s*/)[0].length;
+
+                if (leadingSpaces > 0) {
+                    // 減らす量（indentUnit分、ただし不足しないように）
+                    const removeCount = Math.min(indentUnit, leadingSpaces);
+
+                    cm.replaceRange(
+                        '',
+                        { line: lineNumber, ch: 0 },
+                        { line: lineNumber, ch: removeCount }
+                    );
+                }
+            }
+        }
+
+        window.runP5Code = function(width, height, userCode) {
+            const resultsArea = document.querySelector("#results-area");
+            resultsArea.innerHTML = "";
+
+            // コンテナdivを作成
+            const div = document.createElement("div");
+            div.className = "results-div";
+            resultsArea.appendChild(div);
+
+            try {
+                // p5インスタンスを作成
+                new p5(function(p) {
+                    try {
+                        const fn = new Function('p', `
+                            with(p) {
+                                ${userCode}
+                                // グローバル関数をpに登録
+                                if (typeof setup !== 'undefined') p.setup = setup;
+                                if (typeof draw !== 'undefined') p.draw = draw;
+                                if (typeof mousePressed !== 'undefined') p.mousePressed = mousePressed;
+                                if (typeof keyPressed !== 'undefined') p.keyPressed = keyPressed;
+                            }
+                        `);
+                        fn(p);
+                    } catch(e) {
+                        p.background(30);
+                        p.fill(255, 80, 80);
+                        p.noStroke();
+                        p.textSize(14);
+                        p.text("Error: " + e.message, 10, 30);
+                        p.noLoop();
+                    }
+                }, div);
+                return { success: true };
+            } catch(e) {
+                return { success: false, message: e.message };
+            }
+        };
+
+        // 現在のアクティブな言語
+        let currentLaunguage = 'python';
+
+        // 初期言語状態をdata属性として設定
+        document.body.setAttribute('data-current-language', currentLaunguage);
+
+        // CodeMirrorの共通オプション
+        const EDITOR_BASE_OPTIONS = {
+            theme: 'monokai',
+            lineNumbers: true,
+            lineWrapping: true,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            indentUnit: 4,
+            tabSize: 4,
+            indentWithTabs: false,
+            extraKeys: {
+                'Tab': onTabKey,
+                'Shift-Tab': onShiftTabKey
+            }
+        };
+
+        // Python用CodeMirrorエディタを初期化
+        var pythonEditor = CodeMirror.fromTextArea(document.getElementById('python-code-input'), {
+            ...EDITOR_BASE_OPTIONS,
+            mode: 'python',
+        });
+
+        // GLSL用CodeMirrorエディタを初期化
+        var glslEditor = CodeMirror.fromTextArea(document.getElementById('glsl-code-input'), {
+            ...EDITOR_BASE_OPTIONS,
+            mode: 'x-shader/x-fragment',
+        });
+
+        // P5用CodeMirrorエディタを初期化
+        var p5Editor = CodeMirror.fromTextArea(document.getElementById('p5-code-input'), {
+            ...EDITOR_BASE_OPTIONS,
+            mode: 'javascript',
+        });
+
+        // 初期状態でGLSLエディタを非表示
+        glslEditor.getWrapperElement().style.display = 'none';
+        p5Editor.getWrapperElement().style.display = 'none';
+
+        // 外部ファイルからデフォルトコードを読み込み
+        if (typeof window.INIT_PYTHON_CODE !== 'undefined') {
+            pythonEditor.setValue(window.INIT_PYTHON_CODE);
+        } else {
+            console.warn('INIT_PYTHON_CODE が未定義です。init-code.js を確認してください。');
+        }
+        if (typeof window.INIT_GLSL_CODE !== 'undefined') {
+            glslEditor.setValue(window.INIT_GLSL_CODE);
+        } else {
+            console.warn('INIT_GLSL_CODE が未定義です。init-code.js を確認してください。');
+        }
+        if (typeof window.INIT_P5_CODE !== 'undefined') {
+            p5Editor.setValue(window.INIT_P5_CODE);
+        } else {
+            console.warn('INIT_P5_CODE が未定義です。init-code.js を確認してください。');
+        }
+
+        // タブ切り替え機能
+        function switchLanguage(language) {
+            currentLaunguage = language;
+            // データ属性としても保存
+            document.body.setAttribute('data-current-language', language);
+
+            // 選択言語に応じて表示状態を更新
+            document.getElementById('python-tab').classList.toggle('active', language === 'python');
+            document.getElementById('glsl-tab').classList.toggle('active', language === 'glsl');
+            document.getElementById('p5-tab').classList.toggle('active', language === 'p5');
+            pythonEditor.getWrapperElement().style.display = language === 'python' ? 'block' : 'none';
+            glslEditor.getWrapperElement().style.display = language === 'glsl' ? 'block' : 'none';
+            p5Editor.getWrapperElement().style.display = language === 'p5' ? 'block' : 'none';
+
+            // コンソールでデバッグ情報を出力
+            console.log(`言語切り替え: ${language}`);
+
+            // エディタのリフレッシュ
+            setTimeout(() => {
+                if (language === 'python') {
+                    pythonEditor.refresh();
+                } else if(language === 'glsl') {
+                    glslEditor.refresh();
+                } else {
+                    p5Editor.refresh();
+                }
+            }, 100);
+        }
+
+        // タブクリックイベント
+        document.getElementById('python-tab').addEventListener('click', () => switchLanguage('python'));
+        document.getElementById('glsl-tab').addEventListener('click', () => switchLanguage('glsl'));
+        document.getElementById('p5-tab').addEventListener('click', () => switchLanguage('p5'));
+
+        // PyScriptでエディタにアクセスできるようにグローバル変数として設定
+        window.pythonEditor = pythonEditor;
+        window.glslEditor = glslEditor;
+        window.p5Editor = p5Editor;
+        window.currentLaunguage = currentLaunguage; // 初期言語状態もグローバル変数として設定
+
+        console.log('✅ CodeMirrorエディタが初期化されました');
+    </script>
+
+    <!-- GLSL実行エンジン -->
+    <script>
+        class GLSLEngine {
+            constructor() {
+                this.canvas = null;             // Canvas
+                this.gl = null;                 // WebGLコンテキスト
+                this.program = null;            // GLSLプログラム
+                this.startTime = Date.now();    // 実行開始時間
+                this.frameCount = 0;            // 実行フレーム数
+                this.animationId = null;        // 次の描画フレームのID
+                
+                // @Memo: ShaderToyのiMouseの挙動は以前はLMB非押下時はiMouse.zwに0が渡されていたが
+                // 現在は以下に変更されており、LMB押下開始かどうかをシェーダで利用できるようになっている
+                // iMouse.xy : 最後にLMB押下した座標
+                // iMouse.z  : 最初にLMB押下したX座標の絶対値 * (押下中か ? 1 : -1)
+                // iMouse.w  : 最初にLMB押下したY座標の絶対値 * (押下開始か ? 1 : -1)
+                // https://www.shadertoy.com/view/Mss3zH
+                this.mouse = {
+                    x: 0,               // 最後にLMB押下したX座標
+                    y: 0,               // 最後にLMB押下したY座標
+                    lx: 0,              // 最初にLMB押下したX座標
+                    ly: 0,              // 最初にLMB押下したY座標
+                    isDown: false,      // 現フレーム時のLMB押下中フラグ
+                    isPrevDown: false,  // 前フレーム時のLMB押下中フラグ
+                };
+
+                // イベントリスナーの参照を保持（cleanup時に解除するため）
+                this._onMouseMove  = null;
+                this._onMouseDown  = null;
+                this._onMouseUp    = null;
+                this._onMouseLeave = null;
+            }
+
+            /**
+             * @brief キャンバス座標系 (左下原点・Y上向き) へ変換
+             *        WebGLおよびShadertoyはY軸が下から上なので反転が必要
+             */
+            _toGLCoords(clientX, clientY) {
+                const rect = this.canvas.getBoundingClientRect();
+                // CSS表示サイズとバッファ解像度のスケール比
+                const scaleX = this.canvas.width  / rect.width;
+                const scaleY = this.canvas.height / rect.height;
+                const x =  (clientX - rect.left) * scaleX;
+                const y = this.canvas.height - (clientY - rect.top) * scaleY;
+                return { x, y };
+            }
+
+            /**
+             * @breaf 初期化処理
+             */
+            init(width = 512, height = 512) {
+                // 既存のキャンバスがあれば削除
+                this.cleanup();
+
+                // 新しいキャンバスを作成
+                this.canvas = document.createElement('canvas');
+                this.canvas.width = width;
+                this.canvas.height = height;
+                this.canvas.className = 'glsl-canvas';
+
+                // WebGLコンテキストを取得
+                this.gl = this.canvas.getContext('webgl') || this.canvas.getContext('experimental-webgl');
+                if (!this.gl) {
+                    console.error('WebGLがサポートされていません');
+                    return;
+                }
+
+                // ビューポートを設定   
+                this.gl.viewport(0, 0, width, height);
+
+                // マウスイベントを登録
+                this._onMouseMove = (e) => {
+                    if (!this.mouse.isDown) return;
+                    const pos = this._toGLCoords(e.clientX, e.clientY);
+                    this.mouse.x = pos.x;
+                    this.mouse.y = pos.y;
+                };
+                this._onMouseDown = (e) => {
+                    const pos = this._toGLCoords(e.clientX, e.clientY);
+                    this.mouse.x  = pos.x;
+                    this.mouse.y  = pos.y;
+                    this.mouse.lx = pos.x;
+                    this.mouse.ly = pos.y;
+                    this.mouse.isDown = true;
+                };
+                this._onMouseUp = (e) => {
+                    this.mouse.isDown = false;
+                };
+                this._onMouseLeave = (e) => {
+                    this.mouse.isDown = false;
+                };
+                this.canvas.addEventListener('mousemove',  this._onMouseMove);
+                this.canvas.addEventListener('mousedown',  this._onMouseDown);
+                this.canvas.addEventListener('mouseup',    this._onMouseUp);
+                this.canvas.addEventListener('mouseleave', this._onMouseLeave);
+
+                return this.canvas;
+            }
+
+            /**
+             * @breaf 解放処理
+             */
+            cleanup() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                    this.animationId = null;
+                }
+
+                if (this.program) {
+                    if (this.gl) {
+                        this.gl.deleteProgram(this.program);
+                    }
+                    this.program = null;
+                }
+
+                this.gl = null;
+
+                // マウスイベントを解除
+                if (this.canvas) {
+                    if (this._onMouseMove)  this.canvas.removeEventListener('mousemove',  this._onMouseMove);
+                    if (this._onMouseDown)  this.canvas.removeEventListener('mousedown',  this._onMouseDown);
+                    if (this._onMouseUp)    this.canvas.removeEventListener('mouseup',    this._onMouseUp);
+                    if (this._onMouseLeave) this.canvas.removeEventListener('mouseleave', this._onMouseLeave);
+                }
+                this._onMouseMove = this._onMouseDown = this._onMouseUp = this._onMouseLeave = null;
+                
+                // キャンバスを削除
+                if (this.canvas) {
+                    if (this.canvas.parentNode) {
+                        this.canvas.parentNode.removeChild(this.canvas);
+                    }
+                    this.canvas.remove();
+                    this.canvas = null;
+                }
+
+                // マウス状態をリセット
+                this.mouse = {
+                    x: 0, y: 0, lx: 0, ly: 0,
+                    isDown: false, isPrevDown: false
+                };
+
+                this.frameCount = 0;
+            }
+
+            /**
+             * @brief シェーダーをコンパイル
+             * @param   {number} type   シェーダーの種類 (VERTEX_SHADER or FRAGMENT_SHADER)
+             * @param   {string} source シェーダーのソースコード
+             * @returns {WebGLShader|null} コンパイルされたシェーダーオブジェクト
+             */
+            compileShader(type, source) {
+                const shader = this.gl.createShader(type);
+                this.gl.shaderSource(shader, source);
+                this.gl.compileShader(shader);
+                if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
+                    const error = this.gl.getShaderInfoLog(shader);
+                    this.gl.deleteShader(shader);
+                    const shaderTypeName = type === this.gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT';
+                    throw new Error(`${shaderTypeName}シェーダーのコンパイルエラー:\n${error}`);
+                }
+                return shader;
+            }
+
+            /**
+             * @brief GLSLプログラムを作成して実行
+             * @param   {string} fragmentSource フラグメントシェーダーのソースコード
+             * @returns {success: boolean, message: string} 実行結果オブジェクト
+             */
+            execute(fragmentShaderSource) {
+                const vertexShaderSource = `
+                    attribute vec2 a_position;
+                    void main() {
+                        gl_Position = vec4(a_position, 0.0, 1.0);
+                    }
+                `;
+
+                try {
+                    // シェーダーのコンパイル
+                    const vertexShader = this.compileShader(this.gl.VERTEX_SHADER, vertexShaderSource);
+                    const fragmentShader = this.compileShader(this.gl.FRAGMENT_SHADER, fragmentShaderSource);
+
+                    // プログラムを作成
+                    this.program = this.gl.createProgram();
+                    this.gl.attachShader(this.program, vertexShader);
+                    this.gl.attachShader(this.program, fragmentShader);
+                    this.gl.linkProgram(this.program);
+
+                    if (!this.gl.getProgramParameter(this.program, this.gl.LINK_STATUS)) {
+                        const error = this.gl.getProgramInfoLog(this.program);
+                        throw new Error(`プログラムのリンクエラー:\n${error}`);
+                    }
+
+                    this.gl.useProgram(this.program);
+
+                    // 頂点バッファを設定(全画面を覆う四角形)
+                    const positionBuffer = this.gl.createBuffer();
+                    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
+                    this.gl.bufferData(this.gl.ARRAY_BUFFER, new Float32Array([
+                        -1, -1,
+                         1, -1,
+                        -1,  1,
+                         1,  1,
+                    ]), this.gl.STATIC_DRAW);
+
+                    const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
+                    this.gl.enableVertexAttribArray(positionLocation);
+                    this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+
+                    // ユニフォーム変数のロケーションを取得
+                    this.resolutionLocation = this.gl.getUniformLocation(this.program, 'iResolution');
+                    this.mouseLocation = this.gl.getUniformLocation(this.program, 'iMouse');
+                    this.timeLocation = this.gl.getUniformLocation(this.program, 'iTime');
+                    this.frameLocation = this.gl.getUniformLocation(this.program, 'iFrame');
+
+                    // 描画開始
+                    this.startTime = Date.now();
+                    this.render();
+
+                    return { success: true, message: 'GLSL実行成功' };
+                } catch (error) {
+                    return { success: false, message: error.message };
+                }
+            }
+
+            /**
+             * @brief 描画ループ
+             */
+            render() {
+                if (!this.program) { return; }
+
+                // 経過時間を取得
+                const currentTime = (Date.now() - this.startTime) / 1000.0;
+
+                // 背景をクリア
+                this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+                // ユニフォーム変数を設定
+                if (this.resolutionLocation) {
+                    this.gl.uniform3f(this.resolutionLocation, this.canvas.width, this.canvas.height, 0);
+                }
+                if (this.mouseLocation) {
+                    const isClick = this.mouse.isDown && !this.mouse.isPrevDown;
+                    this.mouse.isPrevDown = this.mouse.isDown;
+                    const m = this.mouse;
+                    const lx = m.isDown ? Math.abs(m.lx) : -Math.abs(m.lx);
+                    const ly = isClick  ? Math.abs(m.ly) : -Math.abs(m.lx);
+                    this.gl.uniform4f(this.mouseLocation, m.x, m.y, lx, ly);
+                }
+                if (this.timeLocation) {
+                    this.gl.uniform1f(this.timeLocation, currentTime);
+                }
+                if (this.frameLocation) {
+                    this.gl.uniform1i(this.frameLocation, this.frameCount);
+                }
+
+                // 描画
+                this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+
+                // 次のフレームをリクエスト
+                this.animationId = requestAnimationFrame(() => this.render());
+                this.frameCount++;
+            }
+        }
+
+        // GLSLエンジンインスタンスを作成
+        window.glslEngine = new GLSLEngine();
+    </script>
+
+    <!-- コード実行用のスクリプト -->
+    <script type="py">
+        import io
+        import base64
+        import datetime
+        import sys
+        import traceback
+        from io import StringIO
+        from pyscript import document
+        from pyscript import window
+
+        # 実行回数カウンター
+        execution_count = 0
+
+        def create_plot_image(base64_data, timestamp):
+            """Pythonのmatplotによるプロット画像作成"""
+
+            global execution_count
+
+            # div要素を作成
+            div_id = "user-plot-" + timestamp
+            new_div = document.createElement("div")
+            new_div.className = 'results-div'
+            new_div.setAttribute("id", div_id)
+
+            # 画像要素を作成
+            img = document.createElement("img")
+            data_url = "data:img/png;base64," + base64_data
+            img.setAttribute("src", data_url)
+            img.setAttribute("style", "max-width: 100%; height: auto; border: 1px solid #ddd; borde-radius: 3px;")
+            new_div.appendChild(img)
+
+            # ドキュメントに追加
+            results_area = document.querySelector("#results-area")
+            results_area.appendChild(new_div)
+            return div_id
+
+        def create_glsl_canvas(canvas_element):
+            """GLSLキャンバス表示"""
+
+            # div要素を作成
+            new_div = document.createElement("div")
+            new_div.className = 'results-div'
+
+            new_div.appendChild(canvas_element)
+
+            # ドキュメントに追加
+            results_area = document.querySelector("#results-area")
+            results_area.appendChild(new_div)
+        
+        # ユーザーが利用できるヘルパー関数
+
+        def show_plot(fig):
+            """グラフを表示"""
+
+            buf = io.BytesIO()
+            plt.figure(fig.number)
+            plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+            buf.seek(0)
+            img_str = base64.b64encode(buf.getvalue()).decode()
+
+            timestamp = datetime.datetime.now().strftime("#%H%M%S")
+            div_id = create_plot_image(img_str, timestamp)
+
+        def clear_previous_outputs():
+            """以前のプロット出力をクリア"""
+
+            # 結果エリアの全ての子要素を削除
+            results_area = document.querySelector("#results-area")
+            if results_area:
+                results_area.innerHTML = ""
+
+        def execute_python_code():
+            """Pythonコードを実行"""
+
+            output_div = document.querySelector("#code-output")
+            output_div.style.display = "block"
+            if not output_div:
+                return
+
+            # CodeMirrorからコードを取得
+            try:
+                user_code = window.pythonEditor.getValue()
+            except Exception as e:
+                output_div.innerText = "エラー: CodeMirrorエディタからコードを取得できませんでした"
+                return
+            
+            if not user_code.strip():
+                output_div.innerText = "コードを入力してください"
+                return
+
+            # 以前の出力をクリア
+            clear_previous_outputs()
+
+            # 実行回数をインクリメント
+            global execution_count
+            execution_count += 1
+            output_div.innerText = "実行中... (#" + str(execution_count) + ")"
+
+            # 出力をキャプチャ
+            old_stdout = sys.stdout
+            old_stderr = sys.stderr
+            sys.stdout = StringIO()
+            sys.stderr = StringIO()
+
+            try:
+                # ユーザーコードを実行
+                exec(user_code, globals())
+
+                # 標準出力を取得
+                stdout_content = sys.stdout.getvalue()
+                stderr_content = sys.stderr.getvalue()
+
+                result = ""
+                if stdout_content:
+                    result += stdout_content
+                if stderr_content:
+                    result += "\n❌ エラー:\n" + stdout_content
+                if not stdout_content and not stderr_content:
+                    result += "✅ 実行完了 (出力無し)"
+
+                output_div.innerText = result
+            except Exception as e:
+                # トレースバック情報を取得してエラー箇所の行番号を表示
+                error_traceback = traceback.format_exc()
+                output_div.innerText = "❌ エラー:\n" + error_traceback
+            finally:
+                # 標準出力を復元
+                sys.stdout = old_stdout
+                sys.stderr = old_stderr
+
+        def execute_glsl_code():
+            """GLSLコードを実行"""
+
+            output_div = document.querySelector("#code-output")
+            if not output_div:
+                return
+
+            # CodeMirrorからコードを取得
+            try:
+                glsl_code = window.glslEditor.getValue()
+            except Exception as e:
+                output_div.innerText = "エラー: CodeMirrorエディタからコードを取得できませんでした"
+                output_div.style.display = "block"
+                return
+            
+            if not glsl_code.strip():
+                output_div.innerText = "GLSLコードを入力してください"
+                return
+
+            # 以前の出力をクリア
+            clear_previous_outputs()
+
+            try:
+                # GLSLエンジンを初期化
+                canvas = window.glslEngine.init(512, 512)
+
+                # GLSLコードを実行
+                result = window.glslEngine.execute(glsl_code)
+
+                if result.success:
+                    # 成功した場合、キャンバスを表示
+                    create_glsl_canvas(canvas)
+                    output_div.innerText = "✅ GLSL実行成功\n🎨 リアルタイムレンダリング中..."
+                    output_div.style.display = "none"
+                else:
+                    # エラーの場合
+                    output_div.innerText = "❌ GLSL実行エラー:\n" + result.message
+                    output_div.style.display = "block"
+            except Exception as e:
+                output_div.innerText = "❌ GLSL実行エラー:\n" + str(e)
+                output_div.style.display = "block"
+
+        def execute_p5_code():
+            """P5コードを実行"""
+
+            output_div = document.querySelector("#code-output")
+            if not output_div:
+                return
+
+            # CodeMirrorからコードを取得
+            try:
+                p5_code = window.p5Editor.getValue()
+            except Exception as e:
+                output_div.innerText = "エラー: CodeMirrorエディタからコードを取得できませんでした"
+                output_div.style.display = "block"
+                return
+
+            # 以前の出力をクリア
+            clear_previous_outputs()
+
+            results_area = document.querySelector("#results-area")
+
+            # 新しいp5インスタンスを作成してコードを実行
+            try:
+                result = window.runP5Code(512, 512, p5_code)
+                if result.success:
+                    output_div.innerText = "✅ P5実行成功\n🫟 レンダリング中..."
+                    output_div.style.display = "none"
+                    results_area.style.display = "block"
+                else:
+                    output_div.innerText = "❌ P5実行エラー:\n" + result.message
+                    output_div.style.display = "block"
+                    results_area.style.display = "none"
+            except Exception as e:
+                output_div.innerText = "❌ P5実行エラー:\n" + str(e)
+                output_div.style.display = "block"
+                results_area.style.display = "none"
+
+        def execute_user_code():
+            """現在選択中の言語のコードを実行"""
+
+            current_lang = None
+
+            # 方法1: data属性から取得
+            try:
+                current_lang = document.body.getAttribute('data-current-language')
+                print(f"データ属性から取得した言語: {current_lang}")
+            except Exception as e:
+                print(f"データ属性取得エラー: {e}")
+            
+            # 方法2: アクティブなタブから判定
+            if not current_lang:
+                try:
+                    python_tab = document.querySelector('#python-tab')
+                    glsl_tab = document.querySelector('#glsl-tab')
+                    p5_tab = document.querySelector('#p5-tab')
+                    if python_tab and python_tab.classList.contains('active'):
+                        current_lang = 'python'
+                    elif glsl_tab and glsl_tab.classList.contains('active'):
+                        current_lang = 'glsl'
+                    elif p5_tab and p5_tab.classList.contains('active'):
+                        current_lang = 'p5'
+                    print(f"アクティブタブから判定した言語: {current_lang}")
+                except Exception as e:
+                    print(f"アクティブタブ判定エラー: {e}")
+            
+            if not current_lang:
+                current_lang = 'python' # デフォルト
+
+            print(f"実行する言語: {current_lang}")
+
+            if current_lang == 'python':
+                execute_python_code()
+            elif current_lang == 'glsl':
+                execute_glsl_code()
+            else:
+                execute_p5_code()
+
+        # プロキシ作成の為のインポート
+        try:
+            from pyscript.ffi import create_proxy
+        except ImportError:
+            try:
+                from pyodide.ffi import create_proxy
+            except ImportError:
+                def create_proxy(func):
+                    return func
+
+        try:
+            # Pyscript推奨の@whenデコレータを使用
+            from pyscript import when
+
+            @when("click", "#execute-btn")
+            def on_execute_click(event):
+                """@whenデコレータを使用したイベントハンドラ"""
+                execute_user_code()
+            print("✅ @whenデコレータでイベントハンドラを設定しました")
+        except Exception as e:
+            # フォールバック: create_proxyを使用
+            execute_btn = document.querySelector("#execute-btn")
+            if execute_btn:
+                execute_btn.addEventListner("click", create_proxy(execute_user_code))
+            print("✅ create_proxyでイベントハンドラを設定しました")
+
+        print("🎉 Python & GLSL対応のコード実行環境の初期化完了!")
+    </script>
+</body>
+</html>
